@@ -1,0 +1,84 @@
+var async = require('async');
+var r = require('rethinkdb');
+
+var connection = null;
+
+var DATABASE_NAME = 'slides';
+var HOST = 'localhost';
+var PORT = 28015;
+
+var usersTestData =[
+  {
+    email: 'santiago@rmotr.com',
+    password: '123',
+    name: 'Santiago Basulto'
+  },
+  {
+    email: 'martin@rmotr.com',
+    password: '123',
+    name: 'Martin Zugnoni'
+  },
+];
+
+function connectionSetup(cb){
+  r.connect( {host: HOST, port: PORT}, function(err, conn) {
+    if(err) return cb(err);
+
+    connection = conn;
+    cb(null);
+  });
+}
+
+function databaseSetup(callback){
+  async.series([
+    function(cb){
+      r.dbDrop(DATABASE_NAME).run(connection, function(err, result){
+        cb(null);
+      });
+    },
+    function(cb){
+      r.dbCreate(DATABASE_NAME).run(connection, cb);
+    },
+    function(){
+      var cb = arguments[arguments.length - 1];
+      connection.use(DATABASE_NAME);
+      cb(null);
+    },
+  ], callback);
+}
+
+function createTables(callback){
+  async.parallel([
+    function(cb){
+      r.tableCreate('users').run(connection, cb);
+    },
+    function(cb){
+      r.tableCreate('decks').run(connection, cb);
+    },
+    function(cb){
+      r.tableCreate('pitches').run(connection, cb);
+    }
+  ], callback);
+}
+
+function insertTestData(callback){
+  async.waterfall([
+    function(cb){
+      r.table('users').insert(usersTestData).run(connection, cb);
+    }
+  ], callback);
+}
+
+async.series([
+  connectionSetup,
+  databaseSetup,
+  createTables,
+  insertTestData
+], function(err){
+  if(err){
+    console.err(err);
+  }else{
+    console.log("Done.");
+    connection.close();
+  }
+})
