@@ -6,9 +6,7 @@ var r = require('rethinkdb');
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  console.log("USER:");
-  console.log(req.user);
-  return res.render('index', { title: 'Express', user: req.user });
+  //return res.render('index', { title: 'Express'});
 
   var connection = null;
   async.waterfall([
@@ -37,8 +35,9 @@ router.get('/', function(req, res, next) {
     function(cb){
       connection.close(cb)
     }
-  ], function(){
-    res.render('index', { title: 'Express' });
+  ], function(err, res){
+    if (err) return next(err);
+    res.render('index', { title: 'ExpressITO' });
   });
 
 });

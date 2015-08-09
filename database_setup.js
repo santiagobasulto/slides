@@ -1,11 +1,14 @@
-var async = require('async');
 var r = require('rethinkdb');
+var async = require('async');
+var bcrypt = require('bcrypt-nodejs');
 
 var connection = null;
 
 var DATABASE_NAME = 'slides';
 var HOST = 'localhost';
 var PORT = 28015;
+var SALT_WORK_FACTOR = 10;
+
 
 var usersTestData =[
   {
@@ -23,7 +26,6 @@ var usersTestData =[
 function connectionSetup(cb){
   r.connect( {host: HOST, port: PORT}, function(err, conn) {
     if(err) return cb(err);
-
     connection = conn;
     cb(null);
   });
@@ -57,14 +59,30 @@ function createTables(callback){
     },
     function(cb){
       r.tableCreate('pitches').run(connection, cb);
-    }
+    },
+    // Indexes
+    // function(cb){
+    //   r.table("users").indexCreate("last_name").run(connection, cb);
+    // }
   ], callback);
 }
 
 function insertTestData(callback){
   async.waterfall([
     function(cb){
-      r.table('users').insert(usersTestData).run(connection, cb);
+      async.map(usersTestData, function(user, _cb){
+        bcrypt.genSalt(SALT_WORK_FACTOR, function(err, salt) {
+          if(err) return _cb(err);
+          bcrypt.hash(user.password, salt, null, function(err, hash) {
+            if(err) return _cb(err);
+            user.password = hash;
+            _cb(null, user);
+          });
+        });
+      }, function(err, users){
+        r.table('users').insert(users).run(connection, cb);
+      });
+
     }
   ], callback);
 }
@@ -76,7 +94,7 @@ async.series([
   insertTestData
 ], function(err){
   if(err){
-    console.err(err);
+    console.log(err);
   }else{
     console.log("Done.");
     connection.close();

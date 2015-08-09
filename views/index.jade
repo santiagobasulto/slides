@@ -1,0 +1,9 @@
+html
+  head
+    title!= title
+  body
+    h1!= title
+    if user
+        p= user
+    if isAuthenticated
+        p Is Authenticated!
